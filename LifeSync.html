@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#000000"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="LifeSync"/>
+<title>LifeSync FD_001</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{background:#000;font-family:'Courier New',monospace;color:#00ff41;overflow-x:hidden;}
+  button{font-family:'Courier New',monospace;cursor:pointer;}
+  input,textarea{font-family:'Courier New',monospace;}
+  textarea{resize:vertical;}
+  ::-webkit-scrollbar{width:3px;}
+  ::-webkit-scrollbar-track{background:#000;}
+  ::-webkit-scrollbar-thumb{background:#003b10;}
+  @keyframes glitch{
+    0%{clip-path:inset(20% 0 30% 0);transform:translate(-3px,0);filter:hue-rotate(90deg);}
+    25%{clip-path:inset(60% 0 10% 0);transform:translate(3px,0);}
+    50%{clip-path:inset(10% 0 60% 0);transform:translate(-2px,0);filter:hue-rotate(0deg);}
+    75%{clip-path:inset(40% 0 20% 0);transform:translate(2px,0);}
+    100%{clip-path:inset(0);transform:translate(0);}
+  }
+  @keyframes energyPulse{0%,100%{opacity:.7;}50%{opacity:1;}}
+  @keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-3px);}40%{transform:translateX(3px);}60%{transform:translateX(-2px);}80%{transform:translateX(2px);}}
+  @keyframes matrixRain{0%{opacity:1;transform:translateY(-10px);}100%{opacity:0;transform:translateY(60px);}}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const C = {
+  bg:"#000000",
+  bg1:"#000d03",
+  bg2:"#001a06",
+  bg3:"#002a0a",
+  line:"#003b10",
+  dim:"#005a18",
+  mid:"#00a832",
+  hi:"#00cc3d",
+  white:"#00ff41",
+  accent:"#39ff7a",
+  danger:"#ff3300",
+  warn:"#aaff00",
+};
+
+const CATS=[
+  {id:"books", kanji:"未",label:"BOOKS"},
+  {id:"sport", kanji:"体",label:"SPORT"},
+  {id:"tasks", kanji:"务",label:"TASKS"},
+  {id:"goals", kanji:"标",label:"GOALS"},
+  {id:"habits",kanji:"惯",label:"HABITS"},
+];
+const FREQ=[
+  {id:"daily",  label:"DAILY",  sym:"D"},
+  {id:"weekly", label:"WEEKLY", sym:"W"},
+  {id:"alltime",label:"ALL-TIME",sym:"∞"},
+];
+const PRIO=[
+  {id:"low", label:"LOW", col:"#005a18"},
+  {id:"med", label:"MED", col:"#00a832"},
+  {id:"high",label:"HIGH",col:"#00ff41"},
+];
+const MOODS=[
+  {id:5,label:"OPTIMAL"},{id:4,label:"FOCUSED"},
+  {id:3,label:"NOMINAL"},{id:2,label:"SLUGGISH"},{id:1,label:"CRITICAL"},
+];
+const WEEK_DAYS=["SUN","MON","TUE","WED","THU","FRI","SAT"];
+const BOOT_LINES=[
+  "LIFESYNC OS v3.1.0 — INITIALIZING...",
+  "LOADING CORE MODULES..................OK",
+  "MOUNTING HABIT ENGINE.................OK",
+  "SYNCING TEMPORAL GRID.................OK",
+  "FD_001 // ALL SYSTEMS NOMINAL ■■■■■■■■",
+];
+
+const INIT_ITEMS=[
+  {id:1,cat:"books",title:"ATOMIC HABITS",desc:"James Clear",progress:60,target:100,unit:"pgs",done:false,freq:"alltime",deadline:"2025-09-30",timerSecs:0,timerRunning:false,prio:"med",note:"Cap.8",noteOpen:false,roadmapSteps:["Cumparat","Citit 50%","Citit 100%","Note finale"],roadmapDone:[true,true,false,false]},
+  {id:2,cat:"sport",title:"ALERGARE",desc:"Dimineata",progress:3,target:5,unit:"km",done:false,freq:"daily",deadline:null,timerSecs:0,timerRunning:false,prio:"high",note:"",noteOpen:false,roadmapSteps:["1km","3km","5km"],roadmapDone:[true,true,false]},
+  {id:3,cat:"tasks",title:"EMAILURI",desc:"Prioritate inalta",progress:0,target:1,unit:"done",done:false,freq:"daily",deadline:null,timerSecs:0,timerRunning:false,prio:"high",note:"",noteOpen:false,roadmapSteps:["Inbox zero"],roadmapDone:[false]},
+  {id:4,cat:"goals",title:"SPANIOLA B1",desc:"Nivel intermediar",progress:20,target:100,unit:"%",done:false,freq:"alltime",deadline:"2025-12-31",timerSecs:0,timerRunning:false,prio:"med",note:"Duolingo zilnic",noteOpen:false,roadmapSteps:["A1 Basics","A2 Conversatie","B1 Fluent"],roadmapDone:[true,false,false]},
+  {id:5,cat:"habits",title:"MEDITATIE",desc:"10 min/zi",progress:5,target:30,unit:"zile",done:false,freq:"weekly",deadline:null,timerSecs:0,timerRunning:false,prio:"low",note:"",noteOpen:false,roadmapSteps:["7 zile","14 zile","30 zile"],roadmapDone:[false,false,false]},
+];
+
+const INIT_HABITS=[
+  {id:1,name:"MEDITATIE",icon:"◉",checks:Array(28).fill(false).map((_,i)=>i<5)},
+  {id:2,name:"ALERGARE", icon:"◆",checks:Array(28).fill(false).map((_,i)=>[0,2,4,6,7].includes(i))},
+  {id:3,name:"CITIT",    icon:"◈",checks:Array(28).fill(false).map((_,i)=>i<8&&i%2===0)},
+  {id:4,name:"HIDRATARE",icon:"○",checks:Array(28).fill(false).map((_,i)=>i<12&&i%3!==2)},
+];
+
+const MAX_ENERGY=100,ENERGY_DECAY_PER_MIN=2,ENERGY_PER_DONE=20,ENERGY_PER_PROGRESS=5;
+const pad=(n,l=2)=>String(n).padStart(l,"0");
+const fmtT=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${pad(h)}:${pad(m)}:${pad(sc)}`:`${pad(m)}:${pad(sc)}`;};
+const getHash=()=>Array.from({length:8},()=>"0123456789ABCDEF"[Math.floor(Math.random()*16)]).join("");
+
+function deadlineLeft(d){
+  if(!d)return null;const diff=new Date(d)-new Date();
+  if(diff<=0)return{expired:true};
+  return{expired:false,days:Math.floor(diff/86400000),hours:Math.floor((diff%86400000)/3600000),mins:Math.floor((diff%3600000)/60000),secs:Math.floor((diff%60000)/1000)};
+}
+function dailyLeft(now){
+  const e=new Date();e.setHours(23,59,59,999);const d=e-now;
+  return{h:Math.floor(d/3600000),m:Math.floor((d%3600000)/60000),s:Math.floor((d%60000)/1000),pct:Math.round(((now.getHours()*60+now.getMinutes())/(24*60))*100)};
+}
+function weeklyLeft(now){
+  const day=now.getDay(),end=new Date(now);
+  end.setDate(now.getDate()+(7-day));end.setHours(23,59,59,999);const d=end-now;
+  return{d:Math.floor(d/86400000),h:Math.floor((d%86400000)/3600000),m:Math.floor((d%3600000)/60000),pct:Math.round((day/7)*100)};
+}
+
+// Matrix rain canvas
+function MatrixRain({w=300,h=70}){
+  const ref=useRef();
+  useEffect(()=>{
+    const c=ref.current;if(!c)return;
+    const ctx=c.getContext("2d");
+    const cols=Math.floor(w/14);
+    const drops=Array(cols).fill(1);
+    const chars="アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF";
+    let raf;
+    const draw=()=>{
+      ctx.fillStyle="rgba(0,0,0,0.05)";ctx.fillRect(0,0,w,h);
+      ctx.fillStyle="#00ff41";ctx.font="12px monospace";
+      drops.forEach((y,i)=>{
+        const ch=chars[Math.floor(Math.random()*chars.length)];
+        ctx.fillStyle=`rgba(0,255,65,${Math.random()*0.7+0.3})`;
+        ctx.fillText(ch,i*14,y*14);
+        if(y*14>h&&Math.random()>0.975)drops[i]=0;
+        drops[i]++;
+      });
+      raf=requestAnimationFrame(draw);
+    };
+    draw();return()=>cancelAnimationFrame(raf);
+  },[w,h]);
+  return React.createElement("canvas",{ref,width:w,height:h,style:{display:"block",width:"100%"}});
+}
+
+function Corners({col=C.dim,sz=8}){
+  const b=`1px solid ${col}`;
+  return React.createElement(React.Fragment,null,
+    [{top:0,left:0,borderTop:b,borderLeft:b},{top:0,right:0,borderTop:b,borderRight:b},
+     {bottom:0,left:0,borderBottom:b,borderLeft:b},{bottom:0,right:0,borderBottom:b,borderRight:b}
+    ].map((s,i)=>React.createElement("div",{key:i,style:{position:"absolute",width:sz,height:sz,...s}}))
+  );
+}
+
+function Scanlines(){
+  return React.createElement("div",{style:{position:"absolute",inset:0,pointerEvents:"none",backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,0.02) 2px,rgba(0,255,65,0.02) 4px)",zIndex:1,borderRadius:"inherit"}});
+}
+
+function Panel({children,label,col=C.dim,style={}}){
+  return React.createElement("div",{style:{position:"relative",background:C.bg1,border:`1px solid ${C.line}`,padding:"12px 12px 10px",boxShadow:`0 0 8px ${C.line}44`,...style}},
+    React.createElement(Corners,{col}),
+    React.createElement(Scanlines),
+    label&&React.createElement("div",{style:{position:"absolute",top:-8,left:10,background:C.bg,padding:"0 5px",fontSize:7,letterSpacing:3,color:C.mid,textShadow:`0 0 6px ${C.mid}`}},[label]),
+    React.createElement("div",{style:{position:"relative",zIndex:2}},children)
+  );
+}
+
+function SegBar({val,max,segs=24,col=C.mid,h=4}){
+  const f=Math.round((Math.min(val,max)/max)*segs);
+  return React.createElement("div",{style:{display:"flex",gap:2}},
+    Array.from({length:segs}).map((_,i)=>React.createElement("div",{key:i,style:{flex:1,height:h,background:i<f?col:C.bg3,boxShadow:i<f?`0 0 4px ${col}88`:"none",transition:"background 0.3s"}}))
+  );
+}
+
+function EnergyBar({energy,lastAction}){
+  const pct=Math.max(0,Math.min(100,energy));
+  const col=pct>60?C.white:pct>30?C.mid:C.danger;
+  const label=pct>75?"PEAK":pct>50?"CHARGED":pct>25?"DRAINING":"LOW POWER";
+  const segs=20,filled=Math.round((pct/100)*segs);
+  const [flash,setFlash]=useState(false);
+  useEffect(()=>{setFlash(true);const t=setTimeout(()=>setFlash(false),600);return()=>clearTimeout(t);},[Math.floor(energy)]);
+  return React.createElement(Panel,{label:"◈ ENERGY SYSTEM",style:{marginBottom:8,padding:"8px 10px 8px"}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}},
+      React.createElement("div",null,
+        React.createElement("div",{style:{fontSize:7,letterSpacing:3,color:col,animation:"energyPulse 2s ease-in-out infinite",textShadow:`0 0 8px ${col}`}},"■ "+label),
+        React.createElement("div",{style:{fontSize:7,color:C.dim,marginTop:1,letterSpacing:1}},"COMPLETE TASKS TO CHARGE")
+      ),
+      React.createElement("div",{style:{fontSize:26,fontWeight:900,color:flash?C.accent:col,transition:"color 0.3s",letterSpacing:2,textShadow:`0 0 12px ${col}`}},Math.round(pct)+React.createElement("span",{style:{fontSize:10,color:C.dim}},"%"))
+    ),
+    React.createElement("div",{style:{display:"flex",gap:2,marginBottom:4}},
+      Array.from({length:segs}).map((_,i)=>
+        React.createElement("div",{key:i,style:{flex:1,height:8,background:i<filled?col:C.bg3,transition:"background 0.4s",boxShadow:i<filled?`0 0 6px ${col}88`:"none"}})
+      )
+    ),
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
+      React.createElement("span",{style:{fontSize:6,color:C.dim,letterSpacing:2}},lastAction?("LAST: "+lastAction):"NO ACTIONS YET"),
+      React.createElement("span",{style:{fontSize:6,color:C.dim,letterSpacing:1}},"−"+ENERGY_DECAY_PER_MIN+"/MIN · +"+ENERGY_PER_DONE+" DONE")
+    )
+  );
+}
+
+function Globe({size=80,speed=0.004}){
+  const ref=useRef();const ang=useRef(0);
+  useEffect(()=>{
+    const c=ref.current;if(!c)return;
+    const ctx=c.getContext("2d"),W=size,H=size,cx=W/2,cy=H/2,R=W/2-4;
+    let raf;
+    const draw=()=>{
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle="#00ff41";ctx.lineWidth=0.5;
+      const a=ang.current;
+      for(let i=1;i<7;i++){const phi=(i/7)*Math.PI,r=R*Math.sin(phi),y=cy-R*Math.cos(phi);ctx.beginPath();ctx.ellipse(cx,y,r*Math.abs(Math.cos(a)),r*0.2,0,0,Math.PI*2);ctx.globalAlpha=0.4;ctx.shadowColor="#00ff41";ctx.shadowBlur=4;ctx.stroke();}
+      for(let j=0;j<8;j++){const lon=(j/8)*Math.PI+a;ctx.beginPath();for(let k=0;k<=40;k++){const phi=(k/40)*Math.PI,x=cx+R*Math.sin(phi)*Math.cos(lon),y=cy-R*Math.cos(phi);k===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.globalAlpha=0.45;ctx.stroke();}
+      ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.strokeStyle=C.dim;ctx.lineWidth=0.5;ctx.stroke();
+      ang.current+=speed;raf=requestAnimationFrame(draw);
+    };
+    draw();return()=>cancelAnimationFrame(raf);
+  },[size,speed]);
+  return React.createElement("canvas",{ref,width:size,height:size,style:{display:"block"}});
+}
+
+function RoadmapTimeline({steps,done,onToggle}){
+  return React.createElement("div",{style:{position:"relative",paddingLeft:16}},
+    React.createElement("div",{style:{position:"absolute",left:6,top:4,bottom:4,width:1,background:C.line}}),
+    steps.map((s,i)=>
+      React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,marginBottom:i<steps.length-1?10:0,position:"relative"}},
+        React.createElement("button",{onClick:()=>onToggle(i),style:{position:"absolute",left:-10,width:14,height:14,borderRadius:"50%",background:done[i]?C.white:C.bg,border:`1px solid ${done[i]?C.white:C.dim}`,cursor:"pointer",zIndex:2,boxShadow:done[i]?`0 0 6px ${C.white}`:"none"}}),
+        React.createElement("div",{style:{marginLeft:16,fontSize:10,color:done[i]?C.white:C.mid,letterSpacing:1,textDecoration:done[i]?"line-through":"none",textShadow:done[i]?`0 0 6px ${C.white}`:"none"}},(done[i]?"✓ ":"> ")+s)
+      )
+    )
+  );
+}
+
+function HabitTracker({habits,setHabits}){
+  return React.createElement("div",null,
+    habits.map(hab=>{
+      const streak=()=>{let s=0;for(let i=hab.checks.length-1;i>=0;i--){if(hab.checks[i])s++;else break;}return s;};
+      return React.createElement("div",{key:hab.id,style:{marginBottom:14}},
+        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:6,alignItems:"center"}},
+          React.createElement("span",{style:{fontSize:9,letterSpacing:2,color:C.white,textShadow:`0 0 6px ${C.white}`}},hab.icon+" "+hab.name),
+          React.createElement("span",{style:{fontSize:8,color:C.mid}},"🔥 "+streak()+" DAY STREAK")
+        ),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}},
+          hab.checks.map((checked,i)=>
+            React.createElement("button",{key:i,onClick:()=>setHabits(p=>p.map(h=>h.id===hab.id?{...h,checks:h.checks.map((c,j)=>j===i?!c:c)}:h)),
+              style:{aspectRatio:"1",background:checked?C.bg3:C.bg,border:`1px solid ${checked?C.white:C.line}`,cursor:"pointer",borderRadius:2,minWidth:0,boxShadow:checked?`0 0 5px ${C.white}66`:"none"}})
+          )
+        ),
+        React.createElement("div",{style:{marginTop:4}},React.createElement(SegBar,{val:hab.checks.filter(Boolean).length,max:28,segs:14,col:C.mid,h:2}))
+      );
+    })
+  );
+}
+
+function FocusMode({onClose}){
+  const [secs,setSecs]=useState(25*60);const[running,setRunning]=useState(false);const[phase,setPhase]=useState("FOCUS");
+  const total=phase==="FOCUS"?25*60:5*60;const pct=1-(secs/total);
+  const r=80,circ=2*Math.PI*r;
+  useEffect(()=>{if(!running)return;const i=setInterval(()=>setSecs(s=>{if(s<=1){setRunning(false);return 0;}return s-1;}),1000);return()=>clearInterval(i);},[running]);
+  return React.createElement("div",{style:{position:"fixed",inset:0,background:C.bg,zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}},
+    React.createElement("div",{style:{fontSize:8,letterSpacing:4,color:C.mid,marginBottom:16,textShadow:`0 0 8px ${C.mid}`}},"FD_001 // FOCUS ENGINE"),
+    React.createElement("div",{style:{position:"relative",width:200,height:200,marginBottom:20}},
+      React.createElement(Globe,{size:200,speed:running?0.012:0.003}),
+      React.createElement("svg",{width:200,height:200,style:{position:"absolute",top:0,left:0}},
+        React.createElement("circle",{cx:100,cy:100,r,fill:"none",stroke:C.line,strokeWidth:3}),
+        React.createElement("circle",{cx:100,cy:100,r,fill:"none",stroke:C.white,strokeWidth:3,strokeDasharray:`${pct*circ} ${circ}`,strokeDashoffset:circ/4,style:{transition:"stroke-dasharray 1s linear",filter:`drop-shadow(0 0 6px ${C.white})`}})
+      ),
+      React.createElement("div",{style:{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}},
+        React.createElement("div",{style:{fontSize:28,fontWeight:900,color:C.white,letterSpacing:3,textShadow:`0 0 20px ${C.white}`}},fmtT(secs)),
+        React.createElement("div",{style:{fontSize:8,letterSpacing:3,color:C.mid}},phase)
+      )
+    ),
+    React.createElement("div",{style:{display:"flex",gap:8,marginBottom:12}},
+      ["FOCUS","BREAK"].map(p=>React.createElement("button",{key:p,onClick:()=>{setPhase(p);setSecs(p==="FOCUS"?25*60:5*60);setRunning(false);},style:{padding:"6px 16px",background:"transparent",border:`1px solid ${phase===p?C.white:C.dim}`,color:phase===p?C.white:C.mid,fontSize:9,letterSpacing:2,cursor:"pointer",boxShadow:phase===p?`0 0 8px ${C.white}44`:"none"}},p))
+    ),
+    React.createElement("div",{style:{display:"flex",gap:8}},
+      React.createElement("button",{onClick:()=>setRunning(r=>!r),style:{padding:"8px 24px",background:running?"transparent":C.white,border:`1px solid ${C.white}`,color:running?C.white:C.bg,fontSize:10,letterSpacing:3,cursor:"pointer",fontWeight:900,boxShadow:`0 0 12px ${C.white}66`}},running?"■ STOP":"▶ START"),
+      React.createElement("button",{onClick:()=>{setSecs(total);setRunning(false);},style:{padding:"8px 12px",background:"transparent",border:`1px solid ${C.dim}`,color:C.mid,fontSize:9,cursor:"pointer"}},"RST"),
+      React.createElement("button",{onClick:onClose,style:{padding:"8px 12px",background:"transparent",border:`1px solid ${C.dim}`,color:C.mid,fontSize:9,cursor:"pointer"}},"✕")
+    )
+  );
+}
+
+function ResetModal({item,onConfirm,onCancel}){
+  return React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.97)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}},
+    React.createElement("div",{style:{position:"relative",background:C.bg,border:`1px solid ${C.danger}`,padding:20,width:"100%",maxWidth:320,animation:"shake 0.4s ease-out",boxShadow:`0 0 20px ${C.danger}44`}},
+      React.createElement(Corners,{col:C.danger,sz:10}),
+      React.createElement("div",{style:{fontSize:7,letterSpacing:3,color:C.danger,marginBottom:10,textShadow:`0 0 8px ${C.danger}`}},"⚠ RESET PROTOCOL"),
+      React.createElement("div",{style:{fontSize:12,fontWeight:900,color:C.white,letterSpacing:2,marginBottom:6}},item.title),
+      React.createElement("div",{style:{fontSize:9,color:C.mid,marginBottom:16,letterSpacing:1}},"Progresul va fi resetat la 0. Task-ul va fi marcat ca nedone."),
+      React.createElement("div",{style:{display:"flex",gap:8}},
+        React.createElement("button",{onClick:onCancel,style:{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.dim}`,color:C.mid,fontSize:9,letterSpacing:2,cursor:"pointer"}},"CANCEL"),
+        React.createElement("button",{onClick:onConfirm,style:{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.danger}`,color:C.danger,fontSize:9,letterSpacing:2,cursor:"pointer",fontWeight:900,boxShadow:`0 0 8px ${C.danger}44`}},"■ RESET")
+      )
+    )
+  );
+}
+
+function App(){
+  const [booted,setBooted]=useState(false);
+  const [bootLines,setBootLines]=useState([]);
+  const [bootPct,setBootPct]=useState(0);
+  const [items,setItems]=useState(INIT_ITEMS);
+  const [habits,setHabits]=useState(INIT_HABITS);
+  const [view,setView]=useState("main");
+  const [activeTab,setActiveTab]=useState("all");
+  const [activeFreq,setActiveFreq]=useState("all");
+  const [showForm,setShowForm]=useState(false);
+  const [editId,setEditId]=useState(null);
+  const [resetTarget,setResetTarget]=useState(null);
+  const [form,setForm]=useState({cat:"tasks",title:"",desc:"",progress:0,target:1,unit:"",freq:"daily",deadline:"",prio:"med",note:"",roadmapSteps:[],roadmapDone:[]});
+  const [mood,setMood]=useState(3);
+  const [journalOpen,setJournalOpen]=useState(false);
+  const [journalText,setJournalText]=useState("");
+  const [glitching,setGlitching]=useState(false);
+  const [glitchText,setGlitchText]=useState("LIFESYNC");
+  const [hash]=useState(getHash);
+  const [now,setNow]=useState(new Date());
+  const [energy,setEnergy]=useState(60);
+  const [lastAction,setLastAction]=useState(null);
+  const timerRefs=useRef({});
+  const lastEnergyDecay=useRef(Date.now());
+
+  useEffect(()=>{
+    const i=setInterval(()=>{
+      setNow(new Date());
+      const elapsed=(Date.now()-lastEnergyDecay.current)/60000;
+      if(elapsed>=1){setEnergy(e=>Math.max(0,e-ENERGY_DECAY_PER_MIN*Math.floor(elapsed)));lastEnergyDecay.current=Date.now();}
+    },1000);return()=>clearInterval(i);
+  },[]);
+
+  useEffect(()=>{
+    let idx=0,pct=0;
+    const li=setInterval(()=>{if(idx<BOOT_LINES.length){setBootLines(p=>[...p,BOOT_LINES[idx]]);idx++;}},300);
+    const pi=setInterval(()=>{pct+=4;setBootPct(Math.min(100,pct));if(pct>=100){clearInterval(pi);clearInterval(li);setTimeout(()=>setBooted(true),300);}},60);
+    return()=>{clearInterval(li);clearInterval(pi);};
+  },[]);
+
+  useEffect(()=>{
+    const i=setInterval(()=>{
+      setGlitching(true);
+      setGlitchText(`L${Math.random()>.5?"1":"I"}F${Math.random()>.5?"3":"E"}\u2588YNC`);
+      setTimeout(()=>{setGlitching(false);setGlitchText("LIFESYNC");},380);
+    },12000);return()=>clearInterval(i);
+  },[]);
+
+  useEffect(()=>{
+    items.forEach(item=>{
+      if(item.timerRunning&&!timerRefs.current[item.id]){
+        timerRefs.current[item.id]=setInterval(()=>setItems(p=>p.map(i=>i.id===item.id?{...i,timerSecs:i.timerSecs+1}:i)),1000);
+      }else if(!item.timerRunning&&timerRefs.current[item.id]){
+        clearInterval(timerRefs.current[item.id]);delete timerRefs.current[item.id];
+      }
+    });
+  },[items.map(i=>i.timerRunning).join()]);
+
+  const addEnergy=(amt,action)=>{setEnergy(e=>Math.min(MAX_ENERGY,e+amt));setLastAction(action);};
+
+  const filtered=items.filter(i=>(activeTab==="all"||i.cat===activeTab)&&(activeFreq==="all"||i.freq===activeFreq));
+  const daily=dailyLeft(now);const weekly=weeklyLeft(now);
+  const moodData=MOODS.find(m=>m.id===mood)||MOODS[2];
+  const hh=pad(now.getHours()),mm=pad(now.getMinutes()),ss=pad(now.getSeconds());
+
+  const openEdit=item=>{setForm({cat:item.cat,title:item.title,desc:item.desc,progress:item.progress,target:item.target,unit:item.unit,freq:item.freq,deadline:item.deadline||"",prio:item.prio||"med",note:item.note||"",roadmapSteps:item.roadmapSteps||[],roadmapDone:item.roadmapDone||[]});setEditId(item.id);setShowForm(true);};
+  const saveItem=()=>{
+    if(!form.title||!form.target)return;
+    const n={...form,id:editId||Date.now(),done:false,timerSecs:0,timerRunning:false,progress:Number(form.progress),target:Number(form.target),noteOpen:false};
+    if(editId)setItems(p=>p.map(i=>i.id===editId?n:i));else setItems(p=>[...p,n]);
+    setShowForm(false);setEditId(null);
+  };
+  const doReset=id=>{setItems(p=>p.map(i=>i.id===id?{...i,progress:0,done:false,timerRunning:false}:i));setResetTarget(null);};
+
+  if(!booted){
+    return React.createElement("div",{style:{background:C.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}},
+      React.createElement(MatrixRain,{w:300,h:70}),
+      React.createElement("div",{style:{margin:"18px 0 6px",fontSize:26,fontWeight:900,letterSpacing:8,color:C.white,textShadow:`0 0 30px ${C.white},0 0 60px ${C.hi}44`}},"LIFESYNC"),
+      React.createElement("div",{style:{fontSize:8,letterSpacing:4,color:C.mid,marginBottom:18,textShadow:`0 0 8px ${C.mid}`}},"FD_"+hash+" // OS v3.1.0"),
+      React.createElement("div",{style:{width:"100%",maxWidth:320,marginBottom:10}},
+        bootLines.map((l,i)=>React.createElement("div",{key:i,style:{fontSize:9,color:i===bootLines.length-1?C.white:C.mid,letterSpacing:1,marginBottom:3,opacity:i===bootLines.length-1?1:0.6,textShadow:i===bootLines.length-1?`0 0 6px ${C.white}`:"none"}},"> "+l))
+      ),
+      React.createElement("div",{style:{width:"100%",maxWidth:320,height:4,background:C.bg3,border:`1px solid ${C.line}`}},
+        React.createElement("div",{style:{height:"100%",width:`${bootPct}%`,background:C.white,transition:"width 0.06s",boxShadow:`0 0 10px ${C.white}`}})
+      ),
+      React.createElement("div",{style:{marginTop:5,fontSize:7,letterSpacing:3,color:C.dim}},bootPct+"% LOADED")
+    );
+  }
+
+  if(view==="focus")return React.createElement(FocusMode,{onClose:()=>setView("main")});
+
+  const renderHeader=()=>React.createElement("div",{style:{background:C.bg,borderBottom:`1px solid ${C.line}`,padding:"12px 14px 10px",position:"sticky",top:0,zIndex:100,boxShadow:`0 2px 20px ${C.bg}`}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}},
+      React.createElement("div",null,
+        React.createElement("div",{style:{fontSize:7,letterSpacing:3,color:C.dim,marginBottom:2}},"FD_"+hash+" // LIFESYNC OS"),
+        React.createElement("div",{style:{fontSize:28,fontWeight:900,letterSpacing:6,color:C.white,lineHeight:1,textShadow:`0 0 20px ${C.white},0 0 40px ${C.hi}66`,animation:glitching?"glitch 0.38s steps(2) forwards":"none"}},glitchText)
+      ),
+      React.createElement(Globe,{size:56})
+    ),
+    React.createElement("div",{style:{marginBottom:8}},
+      React.createElement("div",{style:{fontSize:36,fontWeight:900,letterSpacing:4,lineHeight:1,color:C.white,fontVariantNumeric:"tabular-nums",textShadow:`0 0 15px ${C.white}88`}},
+        hh,React.createElement("span",{style:{opacity:0.25,animation:"blink 1s step-end infinite"}},":"),mm,
+        React.createElement("span",{style:{fontSize:13,color:C.mid,verticalAlign:"super",marginLeft:3}},ss)
+      ),
+      React.createElement("div",{style:{fontSize:7,letterSpacing:3,color:C.dim,marginTop:1}},now.toLocaleDateString("ro-RO",{weekday:"long",day:"numeric",month:"short"}).toUpperCase())
+    ),
+    React.createElement("div",{style:{display:"flex",gap:3,marginBottom:8}},
+      WEEK_DAYS.map((d,i)=>{const cur=now.getDay(),past=i<cur,active=i===cur;
+        return React.createElement("div",{key:i,style:{flex:1,textAlign:"center",padding:"2px 0",fontSize:6,letterSpacing:1,fontWeight:700,border:`1px solid ${active?C.white:past?C.dim:C.line}`,color:active?C.white:past?C.mid:C.dim,background:active?C.bg3:"transparent",boxShadow:active?`0 0 8px ${C.white}44`:"none"}},d);})
+    ),
+    React.createElement("div",{style:{display:"flex",gap:5,marginBottom:8}},
+      [{label:"◈ DAILY",vals:[{v:daily.h,l:"H"},{v:daily.m,l:"M"},{v:daily.s,l:"S"}],pct:daily.pct,done:items.filter(i=>i.done&&i.freq==="daily").length,total:items.filter(i=>i.freq==="daily").length},
+       {label:"◈ WEEKLY",vals:[{v:weekly.d,l:"D"},{v:weekly.h,l:"H"},{v:weekly.m,l:"M"}],pct:weekly.pct,done:items.filter(i=>i.done&&i.freq==="weekly").length,total:items.filter(i=>i.freq==="weekly").length}
+      ].map(cd=>React.createElement(Panel,{key:cd.label,label:cd.label,style:{flex:1,padding:"7px 7px 5px"}},
+        React.createElement("div",{style:{display:"flex",gap:3,alignItems:"baseline",marginBottom:4}},
+          cd.vals.map((t,i)=>React.createElement("div",{key:i,style:{textAlign:"center",flex:1}},
+            React.createElement("div",{style:{fontSize:i===0?18:13,fontWeight:900,color:C.white,lineHeight:1,textShadow:`0 0 8px ${C.white}66`}},pad(t.v)),
+            React.createElement("div",{style:{fontSize:6,color:C.dim,letterSpacing:2}},t.l)
+          )),
+          React.createElement("div",{style:{textAlign:"right",borderLeft:`1px solid ${C.line}`,paddingLeft:5}},
+            React.createElement("div",{style:{fontSize:11,fontWeight:900,color:C.white}},cd.done+"/"+cd.total),
+            React.createElement("div",{style:{fontSize:6,color:C.dim,letterSpacing:1}},"DONE")
+          )
+        ),
+        React.createElement(SegBar,{val:cd.pct,max:100,segs:14,col:C.mid,h:3})
+      ))
+    ),
+    React.createElement(Panel,{label:"◈ MOOD",style:{marginBottom:8,padding:"7px 8px 6px"}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+        React.createElement("span",{style:{fontSize:8,letterSpacing:2,color:C.white,textShadow:`0 0 6px ${C.white}`}},moodData.label),
+        React.createElement("span",{style:{fontSize:7,color:C.dim}},"SELECT ▸")
+      ),
+      React.createElement("div",{style:{display:"flex",gap:3}},
+        MOODS.map(m=>React.createElement("button",{key:m.id,onClick:()=>setMood(m.id),style:{flex:1,height:20,background:mood===m.id?C.bg3:C.bg,border:`1px solid ${mood===m.id?C.white:C.line}`,cursor:"pointer",fontSize:7,color:mood===m.id?C.white:C.dim,boxShadow:mood===m.id?`0 0 6px ${C.white}44`:"none"}},m.id))
+      )
+    ),
+    React.createElement("div",{style:{marginBottom:8}},
+      React.createElement("button",{onClick:()=>setJournalOpen(o=>!o),style:{width:"100%",background:"transparent",border:`1px solid ${C.line}`,padding:"5px 10px",color:C.mid,fontSize:8,letterSpacing:3,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between"}},
+        React.createElement("span",null,"◈ DAILY LOG"),React.createElement("span",null,journalOpen?"▲":"▼")
+      ),
+      journalOpen&&React.createElement("textarea",{value:journalText,onChange:e=>setJournalText(e.target.value),placeholder:"> ENTRY_",style:{width:"100%",background:C.bg1,border:`1px solid ${C.line}`,borderTop:"none",color:C.hi,fontSize:10,padding:"7px 9px",outline:"none",minHeight:55,boxSizing:"border-box",letterSpacing:1}})
+    ),
+    React.createElement("div",{style:{display:"flex",gap:4}},
+      [{id:"focus",l:"▶ FOCUS"},{id:"habits",l:"○ HABITS"},{id:"roadmap",l:"◇ ROADMAP"},{id:"stats",l:"◈ STATS"},{id:"main",l:"◈ MAIN"}].map(n=>
+        React.createElement("button",{key:n.id,onClick:()=>setView(n.id),style:{flex:1,background:"transparent",border:`1px solid ${view===n.id?C.hi:C.line}`,color:view===n.id?C.white:C.dim,padding:"5px 0",fontSize:6,letterSpacing:1,cursor:"pointer",boxShadow:view===n.id?`0 0 8px ${C.hi}44`:"none"}},n.l)
+      )
+    )
+  );
+
+  return React.createElement("div",{style:{background:C.bg,minHeight:"100vh",color:C.hi,maxWidth:480,margin:"0 auto",position:"relative"}},
+    renderHeader(),
+
+    resetTarget&&React.createElement(ResetModal,{item:items.find(i=>i.id===resetTarget),onConfirm:()=>doReset(resetTarget),onCancel:()=>setResetTarget(null)}),
+
+    view==="habits"&&React.createElement("div",{style:{padding:"12px 12px 90px"}},
+      React.createElement(Panel,{label:"◈ HABIT CHECK-IN // 28 DAYS"},
+        React.createElement(HabitTracker,{habits,setHabits})
+      )
+    ),
+
+    view==="roadmap"&&React.createElement("div",{style:{padding:"12px 12px 90px"}},
+      React.createElement("div",{style:{fontSize:7,letterSpacing:3,color:C.dim,marginBottom:10}},"◈ VISUAL ROADMAP // ALL OBJECTIVES"),
+      items.map(item=>{
+        const cat=CATS.find(c=>c.id===item.cat)||CATS[0];
+        const pct=Math.min(100,Math.round((item.progress/item.target)*100));
+        const dl=deadlineLeft(item.deadline);
+        return React.createElement(Panel,{key:item.id,label:cat.kanji+" "+item.title,style:{marginBottom:10}},
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:6}},
+            React.createElement("span",{style:{fontSize:8,color:C.mid}},item.desc),
+            React.createElement("span",{style:{fontSize:9,fontWeight:900,color:C.white,textShadow:`0 0 6px ${C.white}`}},pct+"%")
+          ),
+          React.createElement(SegBar,{val:item.progress,max:item.target,segs:16,col:C.mid,h:4}),
+          React.createElement("div",{style:{margin:"8px 0 4px",fontSize:7,letterSpacing:3,color:C.dim}},"MILESTONES"),
+          React.createElement(RoadmapTimeline,{steps:item.roadmapSteps||[],done:item.roadmapDone||[],onToggle:idx=>setItems(p=>p.map(i=>i.id===item.id?{...i,roadmapDone:i.roadmapDone.map((d,j)=>j===idx?!d:d)}:i))}),
+          dl&&!dl.expired&&React.createElement("div",{style:{marginTop:8,display:"flex",gap:5}},
+            [{v:dl.days,l:"D"},{v:dl.hours,l:"H"},{v:dl.mins,l:"M"}].map((t,i)=>
+              React.createElement("div",{key:i,style:{flex:1,textAlign:"center",border:`1px solid ${C.line}`,padding:"4px 0"}},
+                React.createElement("div",{style:{fontSize:i===0?22:14,fontWeight:900,color:C.white}},pad(t.v)),
+                React.createElement("div",{style:{fontSize:6,color:C.dim,letterSpacing:2}},t.l)
+              )
+            )
+          )
+        );
+      })
+    ),
+
+    view==="stats"&&React.createElement("div",{style:{padding:"12px 12px 90px"}},
+      React.createElement(EnergyBar,{energy,lastAction}),
+      React.createElement(Panel,{label:"◈ GLOBAL STATS",style:{marginBottom:10}},
+        React.createElement("div",{style:{display:"flex",gap:8}},
+          [{l:"TOTAL",v:items.length},{l:"DONE",v:items.filter(i=>i.done).length},{l:"HIGH",v:items.filter(i=>i.prio==="high").length}].map(s=>
+            React.createElement("div",{key:s.l,style:{flex:1,textAlign:"center",border:`1px solid ${C.line}`,padding:"6px 0"}},
+              React.createElement("div",{style:{fontSize:18,fontWeight:900,color:C.white,textShadow:`0 0 10px ${C.white}`}},s.v),
+              React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.mid}},s.l)
+            )
+          )
+        )
+      ),
+      React.createElement(Panel,{label:"◈ CATEGORY BREAKDOWN"},
+        CATS.map(cat=>{
+          const its=items.filter(i=>i.cat===cat.id);
+          const avg=its.length?Math.round(its.reduce((a,i)=>a+(i.progress/i.target*100),0)/its.length):0;
+          return React.createElement("div",{key:cat.id,style:{marginBottom:8}},
+            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:3}},
+              React.createElement("span",{style:{fontSize:9,color:C.hi,letterSpacing:1}},cat.kanji+" "+cat.label),
+              React.createElement("span",{style:{fontSize:8,color:C.mid}},its.filter(i=>i.done).length+"/"+its.length+" · "+avg+"%")
+            ),
+            React.createElement(SegBar,{val:avg,max:100,segs:20,col:C.hi,h:4})
+          );
+        })
+      )
+    ),
+
+    view==="main"&&React.createElement(React.Fragment,null,
+      React.createElement("div",{style:{background:C.bg,padding:"8px 12px",borderBottom:`1px solid ${C.line}`}},
+        React.createElement("div",{style:{display:"flex",gap:4,marginBottom:5}},
+          [{id:"all",sym:"*",label:"ALL"},...FREQ].map(f=>
+            React.createElement("button",{key:f.id,onClick:()=>setActiveFreq(f.id),style:{flex:1,padding:"4px 0",background:"transparent",border:`1px solid ${activeFreq===f.id?C.white:C.line}`,color:activeFreq===f.id?C.white:C.dim,fontSize:7,letterSpacing:2,cursor:"pointer",boxShadow:activeFreq===f.id?`0 0 6px ${C.white}33`:"none"}},f.sym+" "+(f.label||"ALL"))
+          )
+        ),
+        React.createElement("div",{style:{display:"flex",gap:4,overflowX:"auto",scrollbarWidth:"none"}},
+          [{id:"all",kanji:"全",label:"ALL"},...CATS].map(c=>
+            React.createElement("button",{key:c.id,onClick:()=>setActiveTab(c.id),style:{whiteSpace:"nowrap",padding:"4px 8px",background:"transparent",border:`1px solid ${activeTab===c.id?C.hi:C.line}`,color:activeTab===c.id?C.white:C.dim,fontSize:7,cursor:"pointer",boxShadow:activeTab===c.id?`0 0 6px ${C.hi}44`:"none"}},c.kanji+" "+c.label)
+          )
+        )
+      ),
+      React.createElement("div",{style:{padding:"10px 12px 6px"}},
+        React.createElement(EnergyBar,{energy,lastAction})
+      ),
+      React.createElement("div",{style:{padding:"0 12px 90px"}},
+        filtered.length===0&&React.createElement("div",{style:{textAlign:"center",padding:40,color:C.dim,fontSize:9,letterSpacing:3}},
+          React.createElement("div",{style:{fontSize:22,marginBottom:8}},"[ NULL ]"),"NO DATA"
+        ),
+        filtered.map(item=>{
+          const cat=CATS.find(c=>c.id===item.cat)||CATS[2];
+          const pct=Math.min(100,Math.round((item.progress/item.target)*100));
+          const dl=deadlineLeft(item.deadline);
+          const prio=PRIO.find(p=>p.id===item.prio)||PRIO[0];
+          return React.createElement(Panel,{key:item.id,label:cat.kanji+" "+cat.label+" // "+(FREQ.find(f=>f.id===item.freq)?.sym),style:{marginBottom:8,opacity:item.done?0.5:1}},
+            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}},
+              React.createElement("div",{style:{flex:1}},
+                React.createElement("div",{style:{display:"flex",gap:5,marginBottom:3}},
+                  React.createElement("span",{style:{fontSize:7,letterSpacing:2,border:`1px solid ${prio.col}`,color:prio.col,padding:"1px 5px",boxShadow:`0 0 6px ${prio.col}44`}},prio.label),
+                  item.done&&React.createElement("span",{style:{fontSize:7,letterSpacing:2,border:`1px solid ${C.mid}`,color:C.mid,padding:"1px 5px"}},"✓ DONE")
+                ),
+                React.createElement("div",{style:{fontSize:13,fontWeight:900,letterSpacing:2,color:item.done?C.dim:C.white,textDecoration:item.done?"line-through":"none",textShadow:item.done?"none":`0 0 8px ${C.white}44`}},item.title),
+                React.createElement("div",{style:{fontSize:8,color:C.mid,marginTop:1}},item.desc)
+              ),
+              React.createElement("div",{style:{display:"flex",gap:3,marginLeft:6}},
+                React.createElement("button",{onClick:()=>openEdit(item),style:{background:"transparent",border:`1px solid ${C.line}`,color:C.mid,width:24,height:24,cursor:"pointer",fontSize:9}},"E"),
+                React.createElement("button",{onClick:()=>setResetTarget(item.id),style:{background:"transparent",border:`1px solid ${C.dim}`,color:C.mid,width:24,height:24,cursor:"pointer",fontSize:9}},"\u21ba"),
+                React.createElement("button",{onClick:()=>setItems(p=>p.filter(i=>i.id!==item.id)),style:{background:"transparent",border:`1px solid #1a0500`,color:"#553300",width:24,height:24,cursor:"pointer",fontSize:9}},"X")
+              )
+            ),
+            dl&&React.createElement("div",{style:{background:C.bg,border:`1px solid ${C.line}`,padding:"7px 8px",marginBottom:7}},
+              React.createElement("div",{style:{fontSize:7,letterSpacing:3,color:C.dim,marginBottom:5}},"◈ DEADLINE"),
+              dl.expired
+                ?React.createElement("div",{style:{fontSize:16,fontWeight:900,letterSpacing:4,color:C.danger,textShadow:`0 0 10px ${C.danger}`}},"[ EXPIRED ]")
+                :React.createElement("div",{style:{display:"flex",gap:5}},
+                  [{v:dl.days,l:"DAYS"},{v:dl.hours,l:"HRS"},{v:dl.mins,l:"MIN"},{v:dl.secs,l:"SEC"}].map((t,i)=>
+                    React.createElement("div",{key:i,style:{flex:1,textAlign:"center",border:`1px solid ${C.line}`,padding:"5px 2px"}},
+                      React.createElement("div",{style:{fontSize:i===0?22:14,fontWeight:900,color:C.white,lineHeight:1,fontVariantNumeric:"tabular-nums",textShadow:`0 0 8px ${C.white}66`}},pad(t.v)),
+                      React.createElement("div",{style:{fontSize:6,color:C.dim,letterSpacing:2,marginTop:2}},t.l)
+                    )
+                  )
+                )
+            ),
+            React.createElement("div",{style:{marginBottom:7}},
+              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:3}},
+                React.createElement("span",{style:{fontSize:8,color:C.mid}},item.progress+"/"+item.target+" "+item.unit),
+                React.createElement("span",{style:{fontSize:9,fontWeight:900,color:C.white,textShadow:`0 0 6px ${C.white}`}},pct+"%")
+              ),
+              React.createElement(SegBar,{val:item.progress,max:item.target,segs:20,col:C.mid,h:5})
+            ),
+            item.roadmapSteps&&item.roadmapSteps.length>0&&React.createElement("div",{style:{background:C.bg,border:`1px solid ${C.line}`,padding:"7px 8px",marginBottom:7}},
+              React.createElement("div",{style:{fontSize:7,letterSpacing:3,color:C.dim,marginBottom:6}},"◇ MILESTONES"),
+              React.createElement(RoadmapTimeline,{steps:item.roadmapSteps,done:item.roadmapDone||[],onToggle:idx=>setItems(p=>p.map(i=>i.id===item.id?{...i,roadmapDone:i.roadmapDone.map((d,j)=>j===idx?!d:d)}:i))})
+            ),
+            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.bg,border:`1px solid ${C.line}`,padding:"5px 8px",marginBottom:7}},
+              React.createElement("div",null,
+                React.createElement("div",{style:{fontSize:6,letterSpacing:2,color:C.dim,marginBottom:1}},"SESSION TIMER"),
+                React.createElement("div",{style:{fontSize:15,fontWeight:900,fontVariantNumeric:"tabular-nums",color:item.timerRunning?C.white:C.dim,letterSpacing:2,textShadow:item.timerRunning?`0 0 10px ${C.white}66`:"none"}},fmtT(item.timerSecs))
+              ),
+              React.createElement("div",{style:{display:"flex",gap:4}},
+                React.createElement("button",{onClick:()=>setItems(p=>p.map(i=>i.id===item.id?{...i,timerRunning:!i.timerRunning}:i)),style:{background:item.timerRunning?C.bg3:"transparent",border:`1px solid ${item.timerRunning?C.mid:C.dim}`,color:item.timerRunning?C.white:C.mid,padding:"3px 8px",cursor:"pointer",fontSize:7,letterSpacing:2,boxShadow:item.timerRunning?`0 0 8px ${C.mid}44`:"none"}},item.timerRunning?"■ STOP":"▶ RUN"),
+                React.createElement("button",{onClick:()=>setItems(p=>p.map(i=>i.id===item.id?{...i,timerSecs:0,timerRunning:false}:i)),style:{background:"transparent",border:`1px solid ${C.line}`,color:C.dim,padding:"3px 6px",cursor:"pointer",fontSize:7}},"RST")
+              )
+            ),
+            React.createElement("div",{style:{marginBottom:7}},
+              React.createElement("button",{onClick:()=>setItems(p=>p.map(i=>i.id===item.id?{...i,noteOpen:!i.noteOpen}:i)),style:{width:"100%",background:"transparent",border:`1px solid ${C.line}`,color:C.dim,padding:"3px 8px",fontSize:7,letterSpacing:2,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between"}},
+                React.createElement("span",null,"◈ NOTE"),React.createElement("span",null,item.noteOpen?"▲":"▼")
+              ),
+              item.noteOpen&&React.createElement("textarea",{value:item.note,onChange:e=>setItems(p=>p.map(i=>i.id===item.id?{...i,note:e.target.value}:i)),placeholder:"> ADD NOTE_",style:{width:"100%",background:C.bg1,border:`1px solid ${C.line}`,borderTop:"none",color:C.hi,fontSize:9,padding:"6px 8px",outline:"none",minHeight:40,boxSizing:"border-box",letterSpacing:1}})
+            ),
+            React.createElement("div",{style:{display:"flex",gap:5}},
+              React.createElement("button",{onClick:()=>setItems(p=>p.map(i=>i.id===item.id?{...i,progress:Math.max(0,i.progress-1)}:i)),style:{background:"transparent",border:`1px solid ${C.line}`,color:C.mid,width:30,height:30,cursor:"pointer",fontSize:16}},"−"),
+              React.createElement("button",{onClick:()=>{setItems(p=>p.map(i=>i.id===item.id?{...i,progress:Math.min(i.target,i.progress+1)}:i));addEnergy(ENERGY_PER_PROGRESS,"+PROG: "+item.title.slice(0,12));},style:{background:C.bg3,border:`1px solid ${C.white}`,color:C.white,width:30,height:30,cursor:"pointer",fontSize:16,boxShadow:`0 0 8px ${C.white}44`}},"+"),
+              React.createElement("button",{onClick:()=>{const wasDone=item.done;setItems(p=>p.map(i=>i.id===item.id?{...i,done:!i.done}:i));if(!wasDone)addEnergy(ENERGY_PER_DONE,"✓ DONE: "+item.title.slice(0,12));},style:{flex:1,background:item.done?C.bg3:"transparent",border:`1px solid ${item.done?C.mid:C.line}`,color:item.done?C.white:C.dim,height:30,cursor:"pointer",fontSize:7,letterSpacing:2,boxShadow:item.done?`0 0 6px ${C.mid}44`:"none"}},item.done?"↩ REACTIVATE":"✓ MARK DONE")
+            )
+          );
+        })
+      ),
+      React.createElement("button",{onClick:()=>{setForm({cat:"tasks",title:"",desc:"",progress:0,target:1,unit:"",freq:"daily",deadline:"",prio:"med",note:"",roadmapSteps:[],roadmapDone:[]});setEditId(null);setShowForm(true);},style:{position:"fixed",bottom:20,right:20,width:46,height:46,background:C.white,border:"none",color:C.bg,fontSize:22,cursor:"pointer",fontWeight:900,boxShadow:`0 0 20px ${C.white}66,0 0 40px ${C.hi}33`,zIndex:100}},"+")
+    ),
+
+    showForm&&React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,5,1,0.97)",zIndex:300,display:"flex",alignItems:"flex-end"},onClick:()=>setShowForm(false)},
+      React.createElement("div",{style:{background:C.bg,border:`1px solid ${C.line}`,padding:14,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto",position:"relative",boxShadow:`0 -4px 30px ${C.line}`},onClick:e=>e.stopPropagation()},
+        React.createElement(Corners,{col:C.mid,sz:10}),
+        React.createElement("div",{style:{fontSize:8,letterSpacing:3,color:C.mid,marginBottom:12,textShadow:`0 0 6px ${C.mid}`}},"◈ "+(editId?"EDIT":"NEW")+" // FD_"+hash),
+        React.createElement("div",{style:{marginBottom:9}},
+          React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:4}},"CATEGORY"),
+          React.createElement("div",{style:{display:"flex",gap:4,flexWrap:"wrap"}},
+            CATS.map(c=>React.createElement("button",{key:c.id,onClick:()=>setForm(f=>({...f,cat:c.id})),style:{padding:"4px 8px",background:"transparent",border:`1px solid ${form.cat===c.id?C.white:C.line}`,color:form.cat===c.id?C.white:C.dim,fontSize:8,cursor:"pointer",boxShadow:form.cat===c.id?`0 0 6px ${C.white}44`:"none"}},c.kanji+" "+c.label))
+          )
+        ),
+        React.createElement("div",{style:{marginBottom:9}},
+          React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:4}},"FREQUENCY"),
+          React.createElement("div",{style:{display:"flex",gap:4}},
+            FREQ.map(f=>React.createElement("button",{key:f.id,onClick:()=>setForm(fm=>({...fm,freq:f.id})),style:{flex:1,padding:"5px",background:"transparent",border:`1px solid ${form.freq===f.id?C.white:C.line}`,color:form.freq===f.id?C.white:C.dim,fontSize:8,cursor:"pointer"}},f.sym+" "+f.label))
+          )
+        ),
+        React.createElement("div",{style:{marginBottom:9}},
+          React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:4}},"PRIORITY"),
+          React.createElement("div",{style:{display:"flex",gap:4}},
+            PRIO.map(p=>React.createElement("button",{key:p.id,onClick:()=>setForm(f=>({...f,prio:p.id})),style:{flex:1,padding:"5px",background:"transparent",border:`1px solid ${form.prio===p.id?p.col:C.line}`,color:form.prio===p.id?p.col:C.dim,fontSize:8,cursor:"pointer"}},p.label))
+          )
+        ),
+        ...[{k:"title",l:"TITLE *",p:"EX: CITESTE 30 MIN"},{k:"desc",l:"DESCRIPTION",p:"EX: DIMINEATA"},{k:"unit",l:"UNIT",p:"EX: PAGINI / KM / ZILE"}].map(f=>
+          React.createElement("div",{key:f.k,style:{marginBottom:8}},
+            React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:3}},f.l),
+            React.createElement("input",{value:form[f.k],onChange:e=>setForm(fm=>({...fm,[f.k]:e.target.value})),placeholder:f.p,style:{width:"100%",background:C.bg1,border:`1px solid ${C.line}`,padding:"7px 9px",color:C.white,fontSize:11,outline:"none",boxSizing:"border-box",caretColor:C.white}})
+          )
+        ),
+        React.createElement("div",{style:{display:"flex",gap:8,marginBottom:8}},
+          [{k:"progress",l:"PROGRESS"},{k:"target",l:"TARGET *"}].map(f=>
+            React.createElement("div",{key:f.k,style:{flex:1}},
+              React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:3}},f.l),
+              React.createElement("input",{type:"number",value:form[f.k],onChange:e=>setForm(fm=>({...fm,[f.k]:e.target.value})),style:{width:"100%",background:C.bg1,border:`1px solid ${C.line}`,padding:"7px 9px",color:C.white,fontSize:11,outline:"none",boxSizing:"border-box"}})
+            )
+          )
+        ),
+        React.createElement("div",{style:{marginBottom:8}},
+          React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:3}},"DEADLINE"),
+          React.createElement("input",{type:"date",value:form.deadline,onChange:e=>setForm(fm=>({...fm,deadline:e.target.value})),style:{width:"100%",background:C.bg1,border:`1px solid ${C.line}`,padding:"7px 9px",color:C.white,fontSize:11,outline:"none",boxSizing:"border-box",colorScheme:"dark"}})
+        ),
+        React.createElement("div",{style:{marginBottom:8}},
+          React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:3}},"MILESTONES (one per line)"),
+          React.createElement("textarea",{value:(form.roadmapSteps||[]).join("\n"),onChange:e=>{const s=e.target.value.split("\n");setForm(f=>({...f,roadmapSteps:s,roadmapDone:s.map((_,i)=>f.roadmapDone?.[i]||false)}));},placeholder:"> MILESTONE 1\n> MILESTONE 2",style:{width:"100%",background:C.bg1,border:`1px solid ${C.line}`,padding:"7px 9px",color:C.white,fontSize:10,outline:"none",boxSizing:"border-box",minHeight:60,letterSpacing:1}})
+        ),
+        React.createElement("div",{style:{marginBottom:12}},
+          React.createElement("div",{style:{fontSize:7,letterSpacing:2,color:C.dim,marginBottom:3}},"NOTE"),
+          React.createElement("textarea",{value:form.note,onChange:e=>setForm(fm=>({...fm,note:e.target.value})),placeholder:"> OPTIONAL NOTE_",style:{width:"100%",background:C.bg1,border:`1px solid ${C.line}`,padding:"7px 9px",color:C.white,fontSize:10,outline:"none",boxSizing:"border-box",minHeight:40,letterSpacing:1}})
+        ),
+        React.createElement("button",{onClick:saveItem,style:{width:"100%",padding:12,background:form.title&&form.target?C.white:"transparent",border:`1px solid ${form.title&&form.target?C.white:C.line}`,color:form.title&&form.target?C.bg:C.dim,fontSize:10,letterSpacing:4,cursor:"pointer",fontWeight:900,boxShadow:form.title&&form.target?`0 0 15px ${C.white}44`:"none"}},"◈ "+(editId?"SAVE CHANGES":"INITIALIZE ENTRY"))
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
